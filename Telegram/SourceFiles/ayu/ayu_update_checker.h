@@ -1,13 +1,18 @@
 #pragma once
 
 #include <QtCore/QString>
+#include <functional>
 
 namespace AyuUpdate {
 
-// The current local version. Increment when you release a new build.
+// Increment when you release a new build.
 inline constexpr int kSandyGramVersion = 1;
 
-// Opens the GitHub releases page where users can check for and download updates.
+// Starts an async check against version.txt on GitHub.
+void startSandyGramUpdateCheck(std::function<void()> onDone = nullptr);
+
+bool isSandyGramUpdateAvailable();
+int latestSandyGramVersion();
 QString sandygramReleasesUrl();
 QString currentSandyGramVersionText();
 
