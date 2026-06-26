@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/custom_emoji_helper.h"
 #include "ui/text/text_options.h"
 #include "ui/text/text_utilities.h"
+#include "ui/image/image_prepare.h"
 #include "ui/painter.h"
 #include "ui/rect.h"
 #include "ui/power_saving.h"
@@ -26,6 +27,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "lang/lang_text_entity.h"
 #include "styles/style_dialogs.h"
+
+// AyuGram includes
+#include "ayu/ayu_settings.h"
 
 namespace {
 
@@ -505,16 +509,69 @@ void MessageView::paint(
 	static const auto ellipsisWidth = st::dialogsTextStyle.font->width(
 		kQEllipsis);
 	if (rect.width() > ellipsisWidth) {
-		_textCache.draw(p, {
-			.position = rect.topLeft(),
-			.availableWidth = rect.width(),
-			.palette = palette,
-			.spoiler = Text::DefaultSpoilerCache(),
-			.now = context.now,
-			.pausedEmoji = context.paused || On(PowerSaving::kEmojiChat),
-			.pausedSpoiler = pausedSpoiler,
-			.elisionHeight = rect.height(),
-		});
+		const auto hide = AyuSettings::getInstance().hideTextContent;
+		if (hide) {
+			const auto ratio = style::DevicePixelRatio();
+			const auto textSize = QSize(
+				rect.width(),
+				rect.height());
+			auto textImage = QImage(
+				textSize * ratio,
+				QImage::Format_ARGB32_Premultiplied);
+			textImage.setDevicePixelRatio(ratio);
+			textImage.fill(Qt::transparent);
+			{
+				QPainter q(&textImage);
+				_textCache.draw(q, {
+					.position = QPoint(0, 0),
+					.availableWidth = rect.width(),
+					.palette = palette,
+					.spoiler = Text::DefaultSpoilerCache(),
+					.now = context.now,
+					.pausedEmoji = context.paused
+						|| On(PowerSaving::kEmojiChat),
+					.pausedSpoiler = pausedSpoiler,
+					.elisionHeight = rect.height(),
+				});
+			}
+			const auto pixelSize = textImage.size();
+			const auto smallSize = std::min(
+				40,
+				std::max(10, textSize.width() / 4));
+			auto small = textImage.scaled(
+				smallSize,
+				smallSize,
+				Qt::KeepAspectRatio,
+				Qt::SmoothTransformation);
+			small.setDevicePixelRatio(ratio);
+			auto blurred = Images::BlurLargeImage(
+				std::move(small),
+				AyuSettings::getInstance().blurStrength * 2);
+			textImage = blurred.scaled(
+				pixelSize,
+				Qt::IgnoreAspectRatio,
+				Qt::FastTransformation);
+			textImage.setDevicePixelRatio(ratio);
+			{
+				QPainter p2(&textImage);
+				p2.fillRect(
+					QRect(QPoint(), textImage.size()),
+					QColor(0, 0, 0, 48));
+			}
+			p.drawImage(rect.topLeft(), textImage);
+		} else {
+			_textCache.draw(p, {
+				.position = rect.topLeft(),
+				.availableWidth = rect.width(),
+				.palette = palette,
+				.spoiler = Text::DefaultSpoilerCache(),
+				.now = context.now,
+				.pausedEmoji = context.paused
+					|| On(PowerSaving::kEmojiChat),
+				.pausedSpoiler = pausedSpoiler,
+				.elisionHeight = rect.height(),
+			});
+		}
 		rect.setLeft(rect.x() + _textCache.maxWidth());
 	}
 	if (jump1) {
