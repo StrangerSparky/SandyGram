@@ -188,6 +188,8 @@ private:
 	[[nodiscard]] TextSelection unskipTextSelection(
 		TextSelection selection) const;
 
+	void revealText();
+
 	void toggleCommentsButtonRipple(bool pressed);
 	void createCommentsButtonRipple();
 
@@ -309,6 +311,8 @@ private:
 	mutable std::unique_ptr<RightAction> _rightAction;
 	mutable ClickHandlerPtr _fastReplyLink;
 	mutable std::unique_ptr<ViewButton> _viewButton;
+	mutable bool _textRevealed = false;
+	mutable ClickHandlerPtr _textRevealHandler;
 	std::unique_ptr<TopicButton> _topicButton;
 	mutable std::unique_ptr<CommentsButton> _comments;
 

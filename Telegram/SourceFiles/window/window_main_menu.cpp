@@ -87,6 +87,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_ayu_icons.h"
 #include "lang_auto.h"
 #include "ayu/ui/settings/settings_main.h"
+#include "ayu/ui/settings/settings_appearance.h"
+#include "ayu/ui/settings/settings_ayu.h"
+#include "ayu/ui/settings/settings_autoreply.h"
 
 namespace Window {
 namespace {
@@ -381,8 +384,7 @@ MainMenu::MainMenu(
 	parentResized();
 
 	_telegram->setMarkedText(tr::link(
-		u"AyuGram Desktop"_q,
-		u"https://ayugram.one"_q));
+		u"SandyGram Desktop"_q));
 	_telegram->setLinksTrusted();
 	_version->setMarkedText(
 		tr::link(
@@ -837,6 +839,24 @@ void MainMenu::setupMenu() {
 			{&st::ayuGhostIcon}
 		)->toggleOn(AyuSettings::get_ghostModeEnabledReactive());
 
+		base::install_event_filter(ghostModeToggle, [=](not_null<QEvent*> e) {
+			if (e->type() == QEvent::MouseButtonPress) {
+				const auto me = static_cast<QMouseEvent*>(e.get());
+				if (me->button() == Qt::RightButton) {
+					_contextMenu = base::make_unique_q<Ui::PopupMenu>(
+						this,
+						st::popupMenuWithIcons);
+					_contextMenu->addAction(
+						tr::lng_menu_settings(tr::now),
+						[=] { controller->showSettings(Settings::AyuGhost::Id()); },
+						&st::menuIconSettings);
+					_contextMenu->popup(QCursor::pos());
+					return base::EventFilterResult::Cancel;
+				}
+			}
+			return base::EventFilterResult::Continue;
+		});
+
 		ghostModeToggle->toggledChanges(
 		) | rpl::on_next(
 			[=](bool ghostMode)
@@ -847,11 +867,63 @@ void MainMenu::setupMenu() {
 			ghostModeToggle->lifetime());
 	}
 
+	if (settings.showAutoReplyToggleInDrawer) {
+		const auto autoReplyToggle = addAction(
+			tr::ayu_AutoReplyToggle(),
+			{ &st::menuIconReply }
+		)->toggleOn(AyuSettings::get_autoReplyEnabledReactive());
+
+		base::install_event_filter(autoReplyToggle, [=](not_null<QEvent*> e) {
+			if (e->type() == QEvent::MouseButtonPress) {
+				const auto me = static_cast<QMouseEvent*>(e.get());
+				if (me->button() == Qt::RightButton) {
+					_contextMenu = base::make_unique_q<Ui::PopupMenu>(
+						this,
+						st::popupMenuWithIcons);
+					_contextMenu->addAction(
+						tr::lng_menu_settings(tr::now),
+						[=] { controller->showSettings(Settings::AyuAutoReply::Id()); },
+						&st::menuIconSettings);
+					_contextMenu->popup(QCursor::pos());
+					return base::EventFilterResult::Cancel;
+				}
+			}
+			return base::EventFilterResult::Continue;
+		});
+
+		autoReplyToggle->toggledChanges(
+		) | rpl::on_next(
+			[=](bool enabled)
+			{
+				AyuSettings::set_autoReplyEnabled(enabled);
+				AyuSettings::save();
+			},
+			autoReplyToggle->lifetime());
+	}
+
 	if (settings.showStreamerToggleInDrawer) {
 		const auto streamerModeToggle = addAction(
 			tr::ayu_StreamerModeToggle(),
 			{&st::ayuStreamerModeMenuIcon}
 		)->toggleOn(rpl::single(AyuFeatures::StreamerMode::isEnabled()));
+
+		base::install_event_filter(streamerModeToggle, [=](not_null<QEvent*> e) {
+			if (e->type() == QEvent::MouseButtonPress) {
+				const auto me = static_cast<QMouseEvent*>(e.get());
+				if (me->button() == Qt::RightButton) {
+					_contextMenu = base::make_unique_q<Ui::PopupMenu>(
+						this,
+						st::popupMenuWithIcons);
+					_contextMenu->addAction(
+						tr::lng_menu_settings(tr::now),
+						[=] { controller->showSettings(Settings::AyuAppearance::Id()); },
+						&st::menuIconSettings);
+					_contextMenu->popup(QCursor::pos());
+					return base::EventFilterResult::Cancel;
+				}
+			}
+			return base::EventFilterResult::Continue;
+		});
 
 		streamerModeToggle->toggledChanges(
 		) | rpl::on_next(

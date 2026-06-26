@@ -450,6 +450,26 @@ void SetupDrawerElements(not_null<Ui::VerticalLayout*> container, not_null<Windo
 		},
 		container->lifetime());
 
+	AddButtonWithIcon(
+		container,
+		tr::ayu_AutoReplyToggle(),
+		st::settingsButton,
+		{&st::menuIconReply}
+	)->toggleOn(
+		rpl::single(settings->showAutoReplyToggleInDrawer)
+	)->toggledValue(
+	) | rpl::filter(
+		[=](bool enabled)
+		{
+			return (enabled != settings->showAutoReplyToggleInDrawer);
+		}) | rpl::on_next(
+		[=](bool enabled)
+		{
+			AyuSettings::set_showAutoReplyToggleInDrawer(enabled);
+			AyuSettings::save();
+		},
+		container->lifetime());
+
 #ifdef WIN32
 	AddButtonWithIcon(
 		container,

@@ -6,11 +6,11 @@
 // Copyright @Radolyn, 2025
 #include "settings_main.h"
 
-#include <QDesktopServices>
 #include <styles/style_ayu_icons.h>
 
 #include "lang_auto.h"
 #include "settings_appearance.h"
+#include "settings_autoreply.h"
 #include "settings_ayu.h"
 #include "settings_ayu_utils.h"
 #include "settings_chats.h"
@@ -32,7 +32,6 @@
 #include "ui/widgets/labels.h"
 #include "ui/wrap/vertical_layout.h"
 #include "window/window_session_controller.h"
-#include "window/window_session_controller_link_info.h"
 
 namespace Settings {
 
@@ -87,7 +86,8 @@ void SetupCategories(
 	};
 
 	const auto categories = std::vector<CategoryInfo>{
-		{QString("AyuGram"), &st::menuIconGroupReactions, [=] { showOther(AyuGhost::Id()); }},
+		{QString("SandyGram"), &st::menuIconGroupReactions, [=] { showOther(AyuGhost::Id()); }},
+		{tr::ayu_CategoryAutoReply(tr::now), &st::menuIconReply, [=] { showOther(AyuAutoReply::Id()); }},
 		{asBeta(tr::ayu_CategoryFilters(tr::now)), &st::menuIconTagFilter, [=] { showOther(AyuFilters::Id()); }},
 		{tr::ayu_CategoryGeneral(tr::now), &st::menuIconShowAll, [=] { showOther(AyuGeneral::Id()); }},
 		{tr::ayu_CategoryAppearance(tr::now), &st::menuIconPalette, [=] { showOther(AyuAppearance::Id()); }},
@@ -110,71 +110,6 @@ void SetupCategories(
 	}
 }
 
-void SetupLinks(
-	not_null<Ui::VerticalLayout*> container,
-	not_null<Window::SessionController*> controller) {
-	struct LinkInfo
-	{
-		QString name;
-		QString value;
-		const style::icon *icon;
-		std::function<void()> handler;
-	};
-
-	const auto links = std::vector<LinkInfo>{
-		{
-			tr::ayu_LinksChannel(tr::now),
-			QString("@ayugram"),
-			&st::menuIconChannel,
-			[=]
-			{
-				controller->showPeerByLink(Window::PeerByLinkInfo{
-					.usernameOrId = QString("ayugram"),
-				});
-			}
-		},
-		{
-			tr::ayu_LinksChats(tr::now),
-			QString("@ayugramchat"),
-			&st::menuIconChats,
-			[=]
-			{
-				controller->showPeerByLink(Window::PeerByLinkInfo{
-					.usernameOrId = QString("ayugramchat"),
-				});
-			}
-		},
-		{
-			tr::ayu_LinksTranslate(tr::now),
-			QString("Crowdin"),
-			&st::menuIconTranslate,
-			[=]
-			{
-				QDesktopServices::openUrl(QString("https://translate.ayugram.one"));
-			}
-		},
-		{
-			tr::ayu_LinksDocumentation(tr::now),
-			QString("docs.ayugram.one"),
-			&st::menuIconIpAddress,
-			[=]
-			{
-				QDesktopServices::openUrl(QString("https://docs.ayugram.one"));
-			}
-		},
-	};
-
-	for (const auto &link : links) {
-		AddButtonWithLabel(
-			container,
-			rpl::single(link.name),
-			rpl::single(link.value),
-			st::settingsButton,
-			{link.icon}
-		)->setClickedCallback(link.handler);
-	}
-}
-
 void AyuMain::setupContent(not_null<Window::SessionController*> controller) {
 	const auto content = Ui::CreateChild<Ui::VerticalLayout>(this);
 
@@ -185,7 +120,7 @@ void AyuMain::setupContent(not_null<Window::SessionController*> controller) {
 	content->add(
 		object_ptr<Ui::FlatLabel>(
 			content,
-			rpl::single(QString("AyuGram Desktop v") + QString::fromLatin1(AppVersionStr)),
+			rpl::single(QString("SandyGram Desktop v") + QString::fromLatin1(AppVersionStr)),
 			st::boxTitle),
 		style::al_top);
 
@@ -207,13 +142,6 @@ void AyuMain::setupContent(not_null<Window::SessionController*> controller) {
 
 	AddSubsectionTitle(content, tr::ayu_CategoriesHeader());
 	SetupCategories(content, controller, showOtherMethod());
-
-	AddSkip(content);
-	AddDivider(content);
-	AddSkip(content);
-
-	AddSubsectionTitle(content, tr::ayu_LinksHeader());
-	SetupLinks(content, controller);
 
 	AddSkip(content);
 

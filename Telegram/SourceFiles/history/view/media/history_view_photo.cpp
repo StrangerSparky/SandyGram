@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_cursor_state.h"
 #include "history/view/media/history_view_media_common.h"
 #include "history/view/media/history_view_media_spoiler.h"
+#include "ayu/ayu_settings.h"
 #include "lang/lang_keys.h"
 #include "media/streaming/media_streaming_instance.h"
 #include "media/streaming/media_streaming_player.h"
@@ -444,8 +445,9 @@ void Photo::drawSpoilerTag(
 void Photo::validateUserpicImageCache(QSize size, bool forum) const {
 	const auto forumValue = forum ? 1 : 0;
 	const auto large = _dataMedia->image(PhotoSize::Large);
+	const auto blurImages = AyuSettings::getInstance().blurImages;
 	const auto ratio = style::DevicePixelRatio();
-	const auto blurredValue = large ? 0 : 1;
+	const auto blurredValue = (large ? 0 : 1) | (blurImages ? 2 : 0);
 	if (_imageCache.size() == (size * ratio)
 		&& _imageCacheForum == forumValue
 		&& _imageCacheBlurred == blurredValue) {
@@ -471,6 +473,26 @@ void Photo::validateUserpicImageCache(QSize size, bool forum) const {
 		args = args.blurred();
 	}
 	original = Images::Prepare(std::move(original), size * ratio, args);
+	if (blurImages && large) {
+		const auto pixelSize = original.size();
+		auto small = original.scaled(
+			40, 40,
+			Qt::KeepAspectRatio,
+			Qt::SmoothTransformation);
+		small.setDevicePixelRatio(ratio);
+		auto blurred = Images::BlurLargeImage(std::move(small), AyuSettings::getInstance().blurStrength);
+		original = blurred.scaled(
+			pixelSize,
+			Qt::IgnoreAspectRatio,
+			Qt::FastTransformation);
+		original.setDevicePixelRatio(ratio);
+		{
+			QPainter p(&original);
+			p.fillRect(
+				QRect(QPoint(), original.size()),
+				QColor(0, 0, 0, 48));
+		}
+	}
 	if (forumValue) {
 		original = Images::Round(
 			std::move(original),
@@ -488,16 +510,36 @@ void Photo::validateImageCache(
 		QSize outer,
 		std::optional<Ui::BubbleRounding> rounding) const {
 	const auto large = _dataMedia->image(PhotoSize::Large);
+	const auto blurImages = AyuSettings::getInstance().blurImages;
 	const auto ratio = style::DevicePixelRatio();
-	const auto blurredValue = large ? 0 : 1;
+	const auto blurredValue = (large ? 0 : 1) | (blurImages ? 2 : 0);
 	if (_imageCache.size() == (outer * ratio)
 		&& _imageCacheRounding == rounding
 		&& _imageCacheBlurred == blurredValue) {
 		return;
 	}
-	_imageCache = Images::Round(
-		prepareImageCache(outer),
-		MediaRoundingMask(rounding));
+	auto image = prepareImageCache(outer);
+	if (blurImages) {
+		const auto pixelSize = image.size();
+		auto small = image.scaled(
+			40, 40,
+			Qt::KeepAspectRatio,
+			Qt::SmoothTransformation);
+		small.setDevicePixelRatio(ratio);
+		auto blurred = Images::BlurLargeImage(std::move(small), AyuSettings::getInstance().blurStrength);
+		image = blurred.scaled(
+			pixelSize,
+			Qt::IgnoreAspectRatio,
+			Qt::FastTransformation);
+		image.setDevicePixelRatio(ratio);
+		{
+			QPainter p(&image);
+			p.fillRect(
+				QRect(QPoint(), image.size()),
+				QColor(0, 0, 0, 48));
+		}
+	}
+	_imageCache = Images::Round(std::move(image), MediaRoundingMask(rounding));
 	_imageCacheRounding = rounding;
 	_imageCacheBlurred = blurredValue;
 }
@@ -507,13 +549,18 @@ void Photo::validateSpoilerImageCache(
 		std::optional<Ui::BubbleRounding> rounding) const {
 	Expects(_spoiler != nullptr);
 
+	const auto blurImages = AyuSettings::getInstance().blurImages;
 	const auto ratio = style::DevicePixelRatio();
 	if (_spoiler->background.size() == (outer * ratio)
 		&& _spoiler->backgroundRounding == rounding) {
 		return;
 	}
+	auto background = prepareImageCacheWithLarge(outer, nullptr);
+	if (blurImages) {
+		background = Images::Blur(std::move(background));
+	}
 	_spoiler->background = Images::Round(
-		prepareImageCacheWithLarge(outer, nullptr),
+		std::move(background),
 		MediaRoundingMask(rounding));
 	_spoiler->backgroundRounding = rounding;
 }
@@ -899,6 +946,7 @@ void Photo::validateGroupedCache(
 
 	const auto preview = _data->extendedMediaPreview();
 	const auto loaded = preview || _dataMedia->loaded();
+	const auto blurImages = AyuSettings::getInstance().blurImages;
 	const auto loadLevel = loaded
 		? 2
 		: (_dataMedia->thumbnailInline()
@@ -908,7 +956,7 @@ void Photo::validateGroupedCache(
 		: 0;
 	const auto width = geometry.width();
 	const auto height = geometry.height();
-	const auto options = (loaded ? Option() : Option::Blur);
+	const auto options = (loaded && !blurImages) ? Option() : Option::Blur;
 	const auto key = (uint64(width) << 48)
 		| (uint64(height) << 32)
 		| (uint64(options) << 16)
@@ -940,6 +988,26 @@ void Photo::validateGroupedCache(
 		image->original(),
 		pixSize * ratio,
 		{ .options = options, .outer = { width, height } });
+	if (blurImages && loaded) {
+		const auto pixelSize = scaled.size();
+		auto small = scaled.scaled(
+			40, 40,
+			Qt::KeepAspectRatio,
+			Qt::SmoothTransformation);
+		small.setDevicePixelRatio(ratio);
+		auto blurred = Images::BlurLargeImage(std::move(small), AyuSettings::getInstance().blurStrength);
+		scaled = blurred.scaled(
+			pixelSize,
+			Qt::IgnoreAspectRatio,
+			Qt::FastTransformation);
+		scaled.setDevicePixelRatio(ratio);
+		{
+			QPainter p(&scaled);
+			p.fillRect(
+				QRect(QPoint(), scaled.size()),
+				QColor(0, 0, 0, 48));
+		}
+	}
 	auto rounded = Images::Round(
 		std::move(scaled),
 		MediaRoundingMask(rounding));

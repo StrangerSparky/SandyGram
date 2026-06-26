@@ -1,11 +1,11 @@
 [Desktop Entry]
-Name=AyuGram Desktop
-Comment=Desktop version of AyuGram - ToS breaking Telegram client
-TryExec=AyuGram
-Exec=env DESKTOPINTEGRATION=1 AyuGram -- %U
-Icon=com.ayugram.desktop
+Name=SandyGram Desktop
+Comment=Desktop version of SandyGram - ToS breaking Telegram client
+TryExec=SandyGram
+Exec=env DESKTOPINTEGRATION=1 SandyGram -- %U
+Icon=com.sandygram.desktop
 Terminal=false
-StartupWMClass=AyuGram
+StartupWMClass=SandyGram
 Type=Application
 Categories=Chat;Network;InstantMessaging;Qt;
 MimeType=x-scheme-handler/tg;x-scheme-handler/tonsite;
@@ -17,6 +17,6 @@ X-GNOME-UsesNotifications=true
 X-GNOME-SingleWindow=true
 
 [Desktop Action quit]
-Exec=AyuGram -quit
-Name=Quit AyuGram
+Exec=SandyGram -quit
+Name=Quit SandyGram
 Icon=application-exit

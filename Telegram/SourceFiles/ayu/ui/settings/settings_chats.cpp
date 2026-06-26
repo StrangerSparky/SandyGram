@@ -204,6 +204,103 @@ void SetupGroupsAndChannels(not_null<Ui::VerticalLayout*> container, not_null<Wi
 	AddSkip(container);
 }
 
+void SetupTextPrivacy(not_null<Ui::VerticalLayout*> container) {
+	auto *settings = &AyuSettings::getInstance();
+
+	AddSkip(container);
+	AddSubsectionTitle(container, rpl::single(QString("Text privacy")));
+
+	AddButtonWithIcon(
+		container,
+		rpl::single(QString("Hide text content")),
+		st::settingsButtonNoIcon
+	)->toggleOn(
+		rpl::single(settings->hideTextContent)
+	)->toggledValue(
+	) | rpl::filter(
+		[=](bool enabled) {
+			return (enabled != settings->hideTextContent);
+		}) | rpl::on_next(
+		[=](bool enabled) {
+			AyuSettings::set_hideTextContent(enabled);
+			AyuSettings::save();
+		},
+		container->lifetime());
+
+	AddSkip(container);
+	AddDivider(container);
+	AddSkip(container);
+}
+
+void SetupMediaPrivacy(not_null<Ui::VerticalLayout*> container, not_null<Window::SessionController*> controller) {
+	auto *settings = &AyuSettings::getInstance();
+
+	AddSubsectionTitle(container, tr::lng_settings_privacy_title());
+
+	AddButtonWithIcon(
+		container,
+		rpl::single(QString("Blur all images")),
+		st::settingsButtonNoIcon
+	)->toggleOn(
+		rpl::single(settings->blurImages)
+	)->toggledValue(
+	) | rpl::filter(
+		[=](bool enabled) {
+			return (enabled != settings->blurImages);
+		}) | rpl::on_next(
+		[=](bool enabled) {
+			AyuSettings::set_blurImages(enabled);
+			AyuSettings::save();
+		},
+		container->lifetime());
+
+	AddSkip(container);
+
+	container->add(
+		object_ptr<Button>(container,
+						   rpl::single(QString("Blur strength")),
+						   st::settingsButtonNoIcon)
+	)->setAttribute(Qt::WA_TransparentForMouseEvents);
+
+	auto blurStrengthSlider = MakeSliderWithLabel(
+		container,
+		st::autoDownloadLimitSlider,
+		st::settingsScaleLabel,
+		0,
+		st::settingsScaleLabel.style.font->width("8%%"));
+	container->add(std::move(blurStrengthSlider.widget), st::recentStickersLimitPadding);
+	const auto slider = blurStrengthSlider.slider;
+	const auto label = blurStrengthSlider.label;
+
+	const auto updateLabel = [=](int amount)
+	{
+		label->setText(QString::number(amount));
+	};
+	updateLabel(settings->blurStrength);
+
+	slider->setPseudoDiscrete(
+		10,
+		[=](int amount)
+		{
+			return amount + 1;
+		},
+		settings->blurStrength - 1,
+		[=](int amount)
+		{
+			updateLabel(amount + 1);
+		},
+		[=](int amount)
+		{
+			updateLabel(amount + 1);
+			AyuSettings::set_blurStrength(amount + 1);
+			AyuSettings::save();
+		});
+
+	AddSkip(container);
+	AddDivider(container);
+	AddSkip(container);
+}
+
 void SetupMarks(not_null<Ui::VerticalLayout*> container) {
 	auto *settings = &AyuSettings::getInstance();
 
@@ -460,11 +557,11 @@ void SetupContextMenuElements(not_null<Ui::VerticalLayout*> container,
 		container,
 		controller,
 		settings->showMessageDetailsInContextMenu,
-		options,
-		tr::ayu_MessageDetailsPC(),
-		tr::ayu_SettingsContextMenuTitle(),
-		st::menuIconInfo,
-		[=](int index)
+	 options,
+	 tr::ayu_MessageDetailsPC(),
+	 tr::ayu_SettingsContextMenuTitle(),
+	 st::menuIconInfo,
+	 [=](int index)
 		{
 			AyuSettings::set_showMessageDetailsInContextMenu(index);
 			AyuSettings::save();
@@ -666,6 +763,8 @@ void AyuChats::setupContent(not_null<Window::SessionController*> controller) {
 	SetupStickersAndEmojiSettings(content);
 	SetupRecentStickersLimit(content);
 
+	SetupMediaPrivacy(content, controller);
+	SetupTextPrivacy(content);
 	SetupGroupsAndChannels(content, controller);
 
 	SetupMarks(content);

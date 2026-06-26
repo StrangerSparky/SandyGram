@@ -233,7 +233,7 @@ private:
 	mutable crl::time _videoPosition = 0;
 	mutable TimeId _videoTimestamp = 0;
 	mutable std::optional<Ui::BubbleRounding> _thumbCacheRounding;
-	mutable bool _thumbCacheBlurred : 1 = false;
+	mutable uint32 _thumbCacheBlurred : 2 = 0;
 	mutable bool _thumbIsEllipse : 1 = false;
 	mutable bool _pollingStory : 1 = false;
 	mutable bool _purchasedPriceTag : 1 = false;

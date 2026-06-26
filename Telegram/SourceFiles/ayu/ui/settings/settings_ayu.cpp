@@ -7,6 +7,7 @@
 #include "settings_ayu.h"
 
 #include "lang_auto.h"
+#include "settings_autoreply.h"
 #include "settings_ayu_utils.h"
 #include "ayu/ayu_settings.h"
 #include "boxes/peer_list_box.h"
@@ -22,7 +23,7 @@
 namespace Settings {
 
 rpl::producer<QString> AyuGhost::title() {
-	return rpl::single(QString("AyuGram"));
+	return rpl::single(QString("SandyGram"));
 }
 
 AyuGhost::AyuGhost(
@@ -32,7 +33,9 @@ AyuGhost::AyuGhost(
 	setupContent(controller);
 }
 
-void SetupGhostModeToggle(not_null<Ui::VerticalLayout*> container) {
+void SetupGhostModeToggle(
+	not_null<Ui::VerticalLayout*> container,
+	not_null<Window::SessionController*> controller) {
 	auto *settings = &AyuSettings::getInstance();
 
 	AddSubsectionTitle(container, tr::ayu_GhostEssentialsHeader());
@@ -76,14 +79,33 @@ void SetupGhostModeToggle(not_null<Ui::VerticalLayout*> container) {
 	};
 
 	AddCollapsibleToggle(container, tr::ayu_GhostModeToggle(), checkboxes, true);
+
+	AddButtonWithIcon(
+		container,
+		tr::ayu_AutoReplyToggle(),
+		st::settingsButtonNoIcon
+	)->toggleOn(
+		AyuSettings::get_autoReplyEnabledReactive()
+	)->toggledValue(
+	) | rpl::on_next(
+		[=](bool enabled)
+		{
+			AyuSettings::set_autoReplyEnabled(enabled);
+			AyuSettings::save();
+			if (enabled) {
+				controller->showSettings(AyuAutoReply::Id());
+			}
+		},
+		container->lifetime());
 }
 
 void SetupGhostEssentials(
 	not_null<Ui::VerticalLayout*> container,
+	not_null<Window::SessionController*> controller,
 	not_null<AyuSettings::AyuGramSettings*> settings,
 	not_null<rpl::variable<bool>*> markReadAfterActionVal,
 	not_null<rpl::variable<bool>*> useScheduledMessagesVal) {
-	SetupGhostModeToggle(container);
+	SetupGhostModeToggle(container, controller);
 
 
 	AddButtonWithIcon(
@@ -294,7 +316,7 @@ void AyuGhost::setupContent(not_null<Window::SessionController*> controller) {
 
 	AddSkip(content);
 
-	SetupGhostEssentials(content, settings, markReadAfterActionVal, useScheduledMessagesVal);
+	SetupGhostEssentials(content, controller, settings, markReadAfterActionVal, useScheduledMessagesVal);
 	SetupScheduleMessages(content, settings, markReadAfterActionVal, useScheduledMessagesVal);
 	SetupSendWithoutSound(content);
 

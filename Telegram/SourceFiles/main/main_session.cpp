@@ -63,6 +63,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 // AyuGram includes
 #include "ayu/ayu_settings.h"
+#include "ayu/ayu_autoreply.h"
 #include "api/api_blocked_peers.h"
 
 
@@ -285,6 +286,7 @@ Session::Session(
 	}, _lifetime);
 
 	InitializeBlockedPeers(this);
+	AyuAutoReply::initForSession(this);
 }
 
 void Session::appConfigRefreshed() {

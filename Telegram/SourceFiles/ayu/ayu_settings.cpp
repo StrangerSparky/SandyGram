@@ -34,6 +34,7 @@ rpl::variable<bool> sendUploadProgressReactive;
 rpl::variable<bool> sendOfflinePacketAfterOnlineReactive;
 
 rpl::variable<bool> ghostModeEnabled;
+rpl::variable<bool> autoReplyEnabledReactive;
 
 rpl::variable<QString> deletedMarkReactive;
 rpl::variable<QString> editedMarkReactive;
@@ -142,6 +143,7 @@ void postinitialize() {
 	translationProviderReactive = settings->translationProvider;
 
 	ghostModeEnabled = ghostModeEnabled_util(settings.value());
+	autoReplyEnabledReactive = settings->autoReplyEnabled;
 
 	if (settings->appIcon == QString("macos")) {
 		settings->appIcon = AyuAssets::DEFAULT_ICON;
@@ -239,6 +241,9 @@ AyuGramSettings::AyuGramSettings() {
 	disableAds = true;
 	disableStories = false;
 	disableCustomBackgrounds = true;
+	blurImages = false;
+	blurStrength = 3;
+	hideTextContent = false;
 	showOnlyAddedEmojisAndStickers = false;
 	collapseSimilarChannels = true;
 	hideSimilarChannels = false;
@@ -298,8 +303,21 @@ AyuGramSettings::AyuGramSettings() {
 	showLReadToggleInDrawer = false;
 	showSReadToggleInDrawer = true;
 	showNightModeToggleInDrawer = true;
+	showAutoReplyToggleInDrawer = true;
 	showGhostToggleInDrawer = true;
 	showStreamerToggleInDrawer = false;
+
+	autoReplyEnabled = false;
+	autoReplyMessage = "";
+	autoReplySimulateTyping = true;
+	autoReplyTypingDelayMs = 2000;
+	autoReplySendingDelayMs = 1000;
+	autoReplyTriggerWordsOnly = false;
+	autoReplyTriggerWords = "";
+	autoReplyMessages = "";
+	autoReplyFirstMessageEnabled = false;
+	autoReplyFirstMessage = "";
+	autoReplyRules = "";
 
 	showGhostToggleInTray = true;
 	showStreamerToggleInTray = false;
@@ -424,6 +442,21 @@ void set_disableStories(bool val) {
 
 void set_disableCustomBackgrounds(bool val) {
 	settings->disableCustomBackgrounds = val;
+}
+
+void set_blurImages(bool val) {
+	settings->blurImages = val;
+	triggerHistoryUpdate();
+}
+
+void set_blurStrength(int val) {
+	settings->blurStrength = val;
+	triggerHistoryUpdate();
+}
+
+void set_hideTextContent(bool val) {
+	settings->hideTextContent = val;
+	triggerHistoryUpdate();
 }
 
 void set_showOnlyAddedEmojisAndStickers(bool val) {
@@ -611,12 +644,61 @@ void set_showNightModeToggleInDrawer(bool val) {
 	settings->showNightModeToggleInDrawer = val;
 }
 
+void set_showAutoReplyToggleInDrawer(bool val) {
+	settings->showAutoReplyToggleInDrawer = val;
+}
+
 void set_showGhostToggleInDrawer(bool val) {
 	settings->showGhostToggleInDrawer = val;
 }
 
 void set_showStreamerToggleInDrawer(bool val) {
 	settings->showStreamerToggleInDrawer = val;
+}
+
+void set_autoReplyEnabled(bool val) {
+	settings->autoReplyEnabled = val;
+	autoReplyEnabledReactive = val;
+}
+
+void set_autoReplyMessage(const QString &val) {
+	settings->autoReplyMessage = val;
+}
+
+void set_autoReplySimulateTyping(bool val) {
+	settings->autoReplySimulateTyping = val;
+}
+
+void set_autoReplyTypingDelayMs(int val) {
+	settings->autoReplyTypingDelayMs = val;
+}
+
+void set_autoReplySendingDelayMs(int val) {
+	settings->autoReplySendingDelayMs = val;
+}
+
+void set_autoReplyTriggerWordsOnly(bool val) {
+	settings->autoReplyTriggerWordsOnly = val;
+}
+
+void set_autoReplyTriggerWords(const QString &val) {
+	settings->autoReplyTriggerWords = val;
+}
+
+void set_autoReplyMessages(const QString &val) {
+	settings->autoReplyMessages = val;
+}
+
+void set_autoReplyFirstMessageEnabled(bool val) {
+	settings->autoReplyFirstMessageEnabled = val;
+}
+
+void set_autoReplyFirstMessage(const QString &val) {
+	settings->autoReplyFirstMessage = val;
+}
+
+void set_autoReplyRules(const QString &val) {
+	settings->autoReplyRules = val;
 }
 
 void set_showGhostToggleInTray(bool val) {
@@ -698,6 +780,10 @@ bool isGhostModeActive() {
 	return ghostModeEnabled.current();
 }
 
+bool isAutoReplyActive() {
+	return autoReplyEnabledReactive.current();
+}
+
 rpl::producer<QString> get_deletedMarkReactive() {
 	return deletedMarkReactive.value();
 }
@@ -716,6 +802,10 @@ rpl::producer<QString> get_translationProviderReactive() {
 
 rpl::producer<bool> get_ghostModeEnabledReactive() {
 	return ghostModeEnabled.value();
+}
+
+rpl::producer<bool> get_autoReplyEnabledReactive() {
+	return autoReplyEnabledReactive.value();
 }
 
 void fire_filtersUpdate() {

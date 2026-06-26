@@ -1,0 +1,104 @@
+name: Build SandyGram for Pterodactyl
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build SandyGram binary
+        run: |
+          chmod +x Telegram/build/docker/centos_env/build.sh
+          docker run --rm -i \
+            -v "$PWD:/usr/src/tdesktop" \
+            ghcr.io/telegramdesktop/tdesktop/centos_env:latest \
+            /usr/src/tdesktop/Telegram/build/docker/centos_env/build.sh \
+            -D TDESKTOP_API_ID=${{ secrets.TDESKTOP_API_ID }} \
+            -D TDESKTOP_API_HASH=${{ secrets.TDESKTOP_API_HASH }}
+
+      - name: Upload binary as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: SandyGram-linux
+          path: out/Release/SandyGram
+
+      - name: Prepare Pterodactyl runtime image
+        run: |
+          mkdir -p docker-build
+          cp out/Release/SandyGram docker-build/
+          cat > docker-build/Dockerfile << 'DOCKERFILE'
+          FROM rockylinux:8
+          RUN dnf install -y epel-release && \
+              dnf install -y \
+                  xorg-x11-server-Xvfb xorg-x11-xauth x11vnc \
+                  dejavu-sans-fonts dejavu-sans-mono-fonts fontconfig \
+                  dbus-daemon mesa-dri-drivers which git nodejs npm && \
+              dnf clean all && rm -rf /var/cache/dnf
+          RUN git clone --depth 1 https://github.com/novnc/noVNC.git /opt/noVNC && \
+              git clone --depth 1 https://github.com/novnc/websockify.git /opt/noVNC/utils/websockify
+          RUN useradd -m -u 1000 -s /bin/bash user
+          COPY SandyGram /home/user/SandyGram
+          RUN chmod +x /home/user/SandyGram
+          COPY --chmod=755 <<'SCRIPT' /home/user/entrypoint.sh
+          #!/bin/bash
+          set -e
+          export DISPLAY=:99
+          mkdir -p /tmp/runtime-$(id -u)
+          rm -f /tmp/.X99-lock
+          echo "[ayugram] Starting Xvfb..."
+          Xvfb :99 -screen 0 1280x800x24 -ac +extension GLX +render -noreset &
+          sleep 1
+          VNC_ARG="-nopw"
+          if [ -n "$VNC_PASSWORD" ]; then
+              mkdir -p /home/user/.vnc
+              x11vnc -storepasswd "$VNC_PASSWORD" /home/user/.vnc/passwd
+              VNC_ARG="-rfbauth /home/user/.vnc/passwd"
+          fi
+          echo "[ayugram] Starting x11vnc..."
+          x11vnc -display :99 -forever -shared -rfbport 5900 $VNC_ARG &
+          echo "[ayugram] Starting noVNC on port 8080..."
+          /opt/noVNC/utils/novnc_proxy --vnc localhost:5900 --listen 8080 &
+          echo "[ayugram] Starting SandyGram..."
+          /home/user/SandyGram -- &
+          echo "[ayugram] All services started"
+          cleanup() { kill $(jobs -p) 2>/dev/null; exit 0; }
+          trap cleanup SIGTERM SIGINT
+          wait -n
+          cleanup
+          SCRIPT
+          USER user
+          WORKDIR /home/user
+          EXPOSE 8080 5900
+          ENTRYPOINT ["/home/user/entrypoint.sh"]
+          DOCKERFILE
+
+      - name: Build and push Pterodactyl image
+        uses: docker/build-push-action@v5
+        with:
+          context: docker-build
+          push: true
+          tags: ghcr.io/${{ github.repository }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

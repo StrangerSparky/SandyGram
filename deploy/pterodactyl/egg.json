@@ -1,0 +1,55 @@
+{
+  "meta": {
+    "version": "PTDL_v2",
+    "version_metadata": "ayugram-autoreply"
+  },
+  "name": "AyuGram Auto-Reply",
+  "author": "AyuGram",
+  "description": "Runs AyuGram Desktop headless with auto-reply. Access via noVNC to scan QR code and configure.",
+  "image": "YOUR_DOCKERHUB_USERNAME/ayugram-pterodactyl:latest",
+  "startup": "/home/user/entrypoint.sh",
+  "config": {
+    "files": {},
+    "startup": {
+      "done": "\\[ayugram\\] All services started\\.",
+      "userInteraction": []
+    },
+    "envs": {}
+  },
+  "scripts": {
+    "installation": {
+      "script": "",
+      "container": "rockylinux:8",
+      "entrypoint": "/bin/bash"
+    }
+  },
+  "service": {
+    "type": "vanilla",
+    "ports": [
+      {
+        "schemes": ["http"],
+        "port": 8080,
+        "name": "noVNC Web UI",
+        "protocol": "tcp"
+      },
+      {
+        "schemes": [],
+        "port": 5900,
+        "name": "VNC Direct",
+        "protocol": "tcp"
+      }
+    ],
+    "variables": [
+      {
+        "name": "VNC_PASSWORD",
+        "description": "Password for VNC connection (leave empty for no password)",
+        "env_variable": "VNC_PASSWORD",
+        "default_value": "",
+        "user_viewable": true,
+        "user_editable": true
+      }
+    ]
+  },
+  "author": "AyuGram",
+  "name": "AyuGram Auto-Reply"
+}

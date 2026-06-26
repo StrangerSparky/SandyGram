@@ -169,7 +169,7 @@ private:
 	uint32 _purchasedPriceTag : 1 = 0;
 	const uint32 _sensitiveSpoiler : 1 = 0;
 	mutable uint32 _imageCacheForum : 1 = 0;
-	mutable uint32 _imageCacheBlurred : 1 = 0;
+	mutable uint32 _imageCacheBlurred : 2 = 0;
 	mutable uint32 _pollingStory : 1 = 0;
 	mutable uint32 _showEnlarge : 1 = 0;
 

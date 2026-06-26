@@ -1,0 +1,32 @@
+# =============================================================================
+# AyuGram Desktop - Headless Docker Compose
+# =============================================================================
+# Deploy AyuGram on a VPS and have it auto-reply 24/7 using the REAL desktop
+# client — 200% safe, identical network fingerprint to a normal user.
+#
+# Setup:
+#   1. Build the AyuGram binary (see BUILD.md)
+#   2. Place the binary here as "SandyGram"
+#   3. docker compose build
+#   4. docker compose up -d
+#   5. Attach via VNC to scan QR code / configure auto-reply:
+#      docker exec -it ayugram /bin/bash
+#      # Install a VNC server to watch the display
+# =============================================================================
+
+services:
+  ayugram:
+    build: .
+    container_name: ayugram
+    restart: unless-stopped
+    volumes:
+      # Persist session data (login token, settings, auto-reply config)
+      - ayugram-data:/home/user/.local/share/SandyGram
+    environment:
+      - DISPLAY=:99
+    # Optional: expose VNC to watch/configure the UI remotely
+    # ports:
+    #   - "5900:5900"
+
+volumes:
+  ayugram-data:

@@ -95,11 +95,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <QtCore/QMimeData>
 #include <QtGui/QTextBlock>
+#include <QtGui/QDesktopServices>
+#include <QtCore/QUrl>
 #include <QtWidgets/QScrollBar>
 #include <QtWidgets/QTextEdit>
 
 // AyuGram includes
 #include "ayu/ayu_settings.h"
+#include "ayu/ayu_update_checker.h"
 #include "ayu/utils/taptic_engine/taptic_engine.h"
 
 
@@ -573,6 +576,10 @@ Widget::Widget(
 		) | rpl::on_next([=] {
 			checkUpdateStatus();
 		}, lifetime());
+
+		AyuUpdate::startSandyGramUpdateCheck([=] {
+			checkUpdateStatus();
+		});
 	}
 
 	_cancelSearch->setClickedCallback([=] {
@@ -2159,6 +2166,31 @@ void Widget::checkUpdateStatus() {
 		}
 		_updateTelegram.destroy();
 	}
+
+	// SandyGram custom update check
+	if (AyuUpdate::isSandyGramUpdateAvailable()) {
+		if (!_updateSandyGram) {
+			_updateSandyGram.create(
+				this,
+				QString("SandyGram v%1 Available!").arg(AyuUpdate::latestSandyGramVersion()),
+				st::dialogsUpdateButton,
+				st::dialogsInstallUpdate,
+				st::dialogsInstallUpdateOver,
+				true);
+			_updateSandyGram->show();
+			_updateSandyGram->setClickedCallback([] {
+				QDesktopServices::openUrl(QUrl(AyuUpdate::sandygramReleasesUrl()));
+			});
+			if (_connecting) {
+				_connecting->raise();
+			}
+		}
+	} else {
+		if (_updateSandyGram) {
+			_updateSandyGram.destroy();
+		}
+	}
+
 	updateControlsGeometry();
 }
 
@@ -3962,6 +3994,7 @@ void Widget::updateControlsGeometry() {
 				buttonHeight);
 		}
 	};
+	putBottomButton(_updateSandyGram);
 	putBottomButton(_updateTelegram);
 	putBottomButton(_downloadBar);
 	putBottomButton(_loadMoreChats);

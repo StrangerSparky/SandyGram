@@ -30,6 +30,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_utilities.h"
 #include "ui/text/text_extended_data.h"
 #include "ui/power_saving.h"
+
+#include "ui/click_handler.h"
 #include "ui/rect.h"
 //#include "ui/round_rect.h"
 #include "data/components/factchecks.h"
@@ -1151,7 +1153,45 @@ void Message::draw(Painter &p, const PaintContext &context) const {
 			auto copy = context;
 			copy.selection = textSelection;
 			copy.highlight.range = highlightRange;
-			paintText(p, trect, copy);
+			const auto hideTextContent = AyuSettings::getInstance().hideTextContent;
+			if (hideTextContent && !_textRevealed && hasVisibleText()) {
+				const auto ratio = style::DevicePixelRatio();
+				auto textImage = QImage(
+					trect.size() * ratio,
+					QImage::Format_ARGB32_Premultiplied);
+				textImage.setDevicePixelRatio(ratio);
+				textImage.fill(Qt::transparent);
+				{
+					Painter q(&textImage);
+					q.translate(-trect.topLeft());
+					auto textTrect = trect;
+					paintText(q, textTrect, copy);
+					trect = textTrect;
+				}
+				const auto pixelSize = textImage.size();
+				auto small = textImage.scaled(
+					40, 40,
+					Qt::KeepAspectRatio,
+					Qt::SmoothTransformation);
+				small.setDevicePixelRatio(ratio);
+				auto blurred = Images::BlurLargeImage(
+					std::move(small),
+					AyuSettings::getInstance().blurStrength);
+				textImage = blurred.scaled(
+					pixelSize,
+					Qt::IgnoreAspectRatio,
+					Qt::FastTransformation);
+				textImage.setDevicePixelRatio(ratio);
+				{
+					Painter p2(&textImage);
+					p2.fillRect(
+						QRect(QPoint(), textImage.size()),
+						QColor(0, 0, 0, 48));
+				}
+				p.drawImage(trect.topLeft(), textImage);
+			} else {
+				paintText(p, trect, copy);
+			}
 		}
 		if (drawOnlyText) {
 			p.restore();
@@ -2181,6 +2221,11 @@ void Message::toggleTopicButtonRipple(bool pressed) {
 	}
 }
 
+void Message::revealText() {
+	_textRevealed = true;
+	customEmojiRepaint();
+}
+
 void Message::createTopicButtonRipple() {
 	const auto geometry = countGeometry().marginsRemoved(st::msgPadding);
 	const auto availableWidth = geometry.width();
@@ -2213,6 +2258,8 @@ bool Message::hasHeavyPart() const {
 
 void Message::unloadHeavyPart() {
 	Element::unloadHeavyPart();
+	_textRevealed = false;
+	_textRevealHandler = nullptr;
 	_comments = nullptr;
 	if (_fromNameStatus) {
 		_fromNameStatus->custom = nullptr;
@@ -2488,11 +2535,39 @@ TextState Message::textState(
 					result.symbol += visibleMediaTextLen;
 				}
 				result.overMessageText = true;
+				if (AyuSettings::getInstance().hideTextContent
+					&& hasVisibleText()
+					&& (!_textRevealed || !result.link)) {
+					if (!_textRevealHandler) {
+						const auto raw = const_cast<Message*>(this);
+						_textRevealHandler
+							= std::make_shared<LambdaClickHandler>(
+								crl::guard(raw, [raw] {
+									raw->_textRevealed = !raw->_textRevealed;
+									raw->customEmojiRepaint();
+								}));
+					}
+					result.link = _textRevealHandler;
+				}
 				checkBottomInfoState();
 				return result;
 			} else if (point.y() >= trect.y() + trect.height()) {
 				result.symbol = visibleTextLen + visibleMediaTextLen;
 			}
+		}
+		if (!result.link
+			&& AyuSettings::getInstance().hideTextContent
+			&& hasVisibleText()
+			&& trect.contains(point)) {
+			if (!_textRevealHandler) {
+				const auto raw = const_cast<Message*>(this);
+				_textRevealHandler = std::make_shared<LambdaClickHandler>(
+					crl::guard(raw, [raw] {
+						raw->_textRevealed = !raw->_textRevealed;
+						raw->customEmojiRepaint();
+					}));
+			}
+			result.link = _textRevealHandler;
 		}
 		checkBottomInfoState();
 		if (const auto size = rightActionSize(); size && _rightAction) {

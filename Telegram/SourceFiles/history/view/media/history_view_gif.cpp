@@ -34,6 +34,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/media/history_view_document.h" // TTLVoiceStops
 #include "history/view/media/history_view_media_common.h"
 #include "history/view/media/history_view_media_spoiler.h"
+#include "ayu/ayu_settings.h"
 #include "window/window_session_controller.h"
 #include "core/application.h" // Application::showDocument.
 #include "core/core_settings.h"
@@ -72,6 +73,30 @@ namespace {
 constexpr auto kMaxGifForwardedBarLines = 4;
 constexpr auto kUseNonBlurredThreshold = 240;
 constexpr auto kMaxInlineArea = 1920 * 1080;
+
+void ApplyFrostedGlass(QImage &image) {
+	const auto pixSize = image.size();
+	const auto ratio = image.devicePixelRatio();
+	auto small = image.scaled(
+		40, 40,
+		Qt::KeepAspectRatio,
+		Qt::SmoothTransformation);
+	small.setDevicePixelRatio(ratio);
+	auto blurred = Images::BlurLargeImage(
+		std::move(small),
+		AyuSettings::getInstance().blurStrength);
+	image = blurred.scaled(
+		pixSize,
+		Qt::IgnoreAspectRatio,
+		Qt::FastTransformation);
+	image.setDevicePixelRatio(ratio);
+	{
+		QPainter p(&image);
+		p.fillRect(
+			QRect(QPoint(), image.size()),
+			QColor(0, 0, 0, 48));
+	}
+}
 
 [[nodiscard]] int GifMaxStatusWidth(not_null<DocumentData*> document) {
 	auto result = st::normalFont->width(
@@ -563,9 +588,15 @@ void Gif::draw(Painter &p, const PaintContext &context) const {
 				activeOwnPlaying->frozenRequest = request;
 				activeOwnPlaying->frozenFrame = streamed->frame(request);
 				activeOwnPlaying->frozenStatusText = _statusText;
+				if (AyuSettings::getInstance().blurImages) {
+					ApplyFrostedGlass(activeOwnPlaying->frozenFrame);
+				}
 			} else if (activeOwnPlaying->frozenRequest != request) {
 				activeOwnPlaying->frozenRequest = request;
 				activeOwnPlaying->frozenFrame = streamed->frame(request);
+				if (AyuSettings::getInstance().blurImages) {
+					ApplyFrostedGlass(activeOwnPlaying->frozenFrame);
+				}
 			}
 			p.drawImage(rthumb, activeOwnPlaying->frozenFrame);
 		} else {
@@ -575,7 +606,10 @@ void Gif::draw(Painter &p, const PaintContext &context) const {
 				activeOwnPlaying->frozenStatusText = QString();
 			}
 
-			const auto frame = streamed->frameWithInfo(request);
+			auto frame = streamed->frameWithInfo(request);
+			if (AyuSettings::getInstance().blurImages) {
+				ApplyFrostedGlass(frame.image);
+			}
 			p.drawImage(rthumb, frame.image);
 			if (!paused) {
 				streamed->markFrameShown();
@@ -1026,19 +1060,41 @@ void Gif::validateThumbCache(
 			&& (normal->width() < kUseNonBlurredThreshold)
 			&& (normal->height() < kUseNonBlurredThreshold))
 		: !videothumb;
+	const auto blurImages = AyuSettings::getInstance().blurImages;
+	const auto blurredValue = (blurred ? 1 : 0) | (blurImages ? 2 : 0);
 	const auto ratio = style::DevicePixelRatio();
 	if (_thumbCache.size() == (outer * ratio)
 		&& _thumbCacheRounding == rounding
-		&& _thumbCacheBlurred == blurred
+		&& _thumbCacheBlurred == blurredValue
 		&& _thumbIsEllipse == isEllipse) {
 		return;
 	}
 	auto cache = prepareThumbCache(outer);
+	if (blurImages) {
+		const auto pixelSize = cache.size();
+		auto small = cache.scaled(
+			40, 40,
+			Qt::KeepAspectRatio,
+			Qt::SmoothTransformation);
+		small.setDevicePixelRatio(ratio);
+		auto blurred = Images::BlurLargeImage(std::move(small), AyuSettings::getInstance().blurStrength);
+		cache = blurred.scaled(
+			pixelSize,
+			Qt::IgnoreAspectRatio,
+			Qt::FastTransformation);
+		cache.setDevicePixelRatio(ratio);
+		{
+			QPainter p(&cache);
+			p.fillRect(
+				QRect(QPoint(), cache.size()),
+				QColor(0, 0, 0, 48));
+		}
+	}
 	_thumbCache = isEllipse
 		? Images::Circle(std::move(cache))
 		: Images::Round(std::move(cache), MediaRoundingMask(rounding));
 	_thumbCacheRounding = rounding;
-	_thumbCacheBlurred = blurred;
+	_thumbCacheBlurred = blurredValue;
 }
 
 QImage Gif::prepareThumbCache(QSize outer) const {
@@ -1475,9 +1531,15 @@ void Gif::drawGrouped(
 				activeOwnPlaying->frozenRequest = request;
 				activeOwnPlaying->frozenFrame = streamed->frame(request);
 				activeOwnPlaying->frozenStatusText = _statusText;
+				if (AyuSettings::getInstance().blurImages) {
+					ApplyFrostedGlass(activeOwnPlaying->frozenFrame);
+				}
 			} else if (activeOwnPlaying->frozenRequest != request) {
 				activeOwnPlaying->frozenRequest = request;
 				activeOwnPlaying->frozenFrame = streamed->frame(request);
+				if (AyuSettings::getInstance().blurImages) {
+					ApplyFrostedGlass(activeOwnPlaying->frozenFrame);
+				}
 			}
 			p.drawImage(geometry, activeOwnPlaying->frozenFrame);
 		} else {
@@ -1485,7 +1547,11 @@ void Gif::drawGrouped(
 				activeOwnPlaying->frozenFrame = QImage();
 				activeOwnPlaying->frozenStatusText = QString();
 			}
-			p.drawImage(geometry, streamed->frame(request));
+			auto groupedFrame = streamed->frame(request);
+			if (AyuSettings::getInstance().blurImages) {
+				ApplyFrostedGlass(groupedFrame);
+			}
+			p.drawImage(geometry, groupedFrame);
 			const auto paused = context.paused
 				|| (autoplayUnderCursor() && !underCursor());
 			if (!paused) {
@@ -1826,6 +1892,7 @@ void Gif::validateGroupedCache(
 		&& (!thumb
 			|| (thumb->width() < kUseNonBlurredThreshold
 				&& thumb->height() < kUseNonBlurredThreshold));
+	const auto blurImages = AyuSettings::getInstance().blurImages;
 
 	const auto loadLevel = good ? 3 : thumb ? 2 : image ? 1 : 0;
 	const auto width = geometry.width();
@@ -1853,6 +1920,26 @@ void Gif::validateGroupedCache(
 		(image ? image : Image::BlankMedia().get())->original(),
 		pixSize * ratio,
 		{ .options = options, .outer = { width, height } });
+	if (blurImages && good) {
+		const auto pixelSize = scaled.size();
+		auto small = scaled.scaled(
+			40, 40,
+			Qt::KeepAspectRatio,
+			Qt::SmoothTransformation);
+		small.setDevicePixelRatio(ratio);
+		auto blurred = Images::BlurLargeImage(std::move(small), AyuSettings::getInstance().blurStrength);
+		scaled = blurred.scaled(
+			pixelSize,
+			Qt::IgnoreAspectRatio,
+			Qt::FastTransformation);
+		scaled.setDevicePixelRatio(ratio);
+		{
+			QPainter p(&scaled);
+			p.fillRect(
+				QRect(QPoint(), scaled.size()),
+				QColor(0, 0, 0, 48));
+		}
+	}
 	auto rounded = Images::Round(
 		std::move(scaled),
 		MediaRoundingMask(rounding));

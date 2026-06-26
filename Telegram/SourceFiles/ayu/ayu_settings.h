@@ -68,6 +68,9 @@ public:
 	bool disableAds;
 	bool disableStories;
 	bool disableCustomBackgrounds;
+	bool blurImages;
+	int blurStrength;
+	bool hideTextContent;
 	bool showOnlyAddedEmojisAndStickers;
 	bool collapseSimilarChannels;
 	bool hideSimilarChannels;
@@ -121,8 +124,24 @@ public:
 	bool showLReadToggleInDrawer;
 	bool showSReadToggleInDrawer;
 	bool showNightModeToggleInDrawer;
+	bool showAutoReplyToggleInDrawer;
 	bool showGhostToggleInDrawer;
 	bool showStreamerToggleInDrawer;
+
+	bool autoReplyEnabled;
+	QString autoReplyMessage;
+	bool autoReplySimulateTyping;
+	int autoReplyTypingDelayMs;
+	int autoReplySendingDelayMs;
+	bool autoReplyTriggerWordsOnly;
+	QString autoReplyTriggerWords;
+	QString autoReplyMessages;
+	bool autoReplyFirstMessageEnabled;
+	QString autoReplyFirstMessage;
+	// Trigger-word → shortcut rules, one per line, format: "word=shortcutName"
+	// When non-empty, the engine matches each rule against the incoming message
+	// and uses the linked shortcut instead of the global shortcut pool.
+	QString autoReplyRules;
 
 	bool showGhostToggleInTray;
 	bool showStreamerToggleInTray;
@@ -175,6 +194,9 @@ void set_hideFromBlocked(bool val);
 void set_disableAds(bool val);
 void set_disableStories(bool val);
 void set_disableCustomBackgrounds(bool val);
+void set_blurImages(bool val);
+void set_blurStrength(int val);
+void set_hideTextContent(bool val);
 void set_showOnlyAddedEmojisAndStickers(bool val);
 void set_collapseSimilarChannels(bool val);
 void set_hideSimilarChannels(bool val);
@@ -228,8 +250,21 @@ void set_showSavedMessagesInDrawer(bool val);
 void set_showLReadToggleInDrawer(bool val);
 void set_showSReadToggleInDrawer(bool val);
 void set_showNightModeToggleInDrawer(bool val);
+void set_showAutoReplyToggleInDrawer(bool val);
 void set_showGhostToggleInDrawer(bool val);
 void set_showStreamerToggleInDrawer(bool val);
+
+void set_autoReplyEnabled(bool val);
+void set_autoReplyMessage(const QString &val);
+void set_autoReplySimulateTyping(bool val);
+void set_autoReplyTypingDelayMs(int val);
+void set_autoReplySendingDelayMs(int val);
+void set_autoReplyTriggerWordsOnly(bool val);
+void set_autoReplyTriggerWords(const QString &val);
+void set_autoReplyMessages(const QString &val);
+void set_autoReplyFirstMessageEnabled(bool val);
+void set_autoReplyFirstMessage(const QString &val);
+void set_autoReplyRules(const QString &val);
 
 void set_showGhostToggleInTray(bool val);
 void set_showStreamerToggleInTray(bool val);
@@ -276,6 +311,9 @@ inline void to_json(nlohmann::json &nlohmann_json_j, const AyuGramSettings &nloh
 	NLOHMANN_JSON_TO(disableAds)
 	NLOHMANN_JSON_TO(disableStories)
 	NLOHMANN_JSON_TO(disableCustomBackgrounds)
+	NLOHMANN_JSON_TO(blurImages)
+	NLOHMANN_JSON_TO(blurStrength)
+	NLOHMANN_JSON_TO(hideTextContent)
 	NLOHMANN_JSON_TO(showOnlyAddedEmojisAndStickers)
 	NLOHMANN_JSON_TO(collapseSimilarChannels)
 	NLOHMANN_JSON_TO(hideSimilarChannels)
@@ -318,8 +356,20 @@ inline void to_json(nlohmann::json &nlohmann_json_j, const AyuGramSettings &nloh
 	NLOHMANN_JSON_TO(showLReadToggleInDrawer)
 	NLOHMANN_JSON_TO(showSReadToggleInDrawer)
 	NLOHMANN_JSON_TO(showNightModeToggleInDrawer)
+	NLOHMANN_JSON_TO(showAutoReplyToggleInDrawer)
 	NLOHMANN_JSON_TO(showGhostToggleInDrawer)
 	NLOHMANN_JSON_TO(showStreamerToggleInDrawer)
+	NLOHMANN_JSON_TO(autoReplyEnabled)
+	NLOHMANN_JSON_TO(autoReplyMessage)
+	NLOHMANN_JSON_TO(autoReplySimulateTyping)
+	NLOHMANN_JSON_TO(autoReplyTypingDelayMs)
+	NLOHMANN_JSON_TO(autoReplySendingDelayMs)
+	NLOHMANN_JSON_TO(autoReplyTriggerWordsOnly)
+	NLOHMANN_JSON_TO(autoReplyTriggerWords)
+	NLOHMANN_JSON_TO(autoReplyMessages)
+	NLOHMANN_JSON_TO(autoReplyFirstMessageEnabled)
+	NLOHMANN_JSON_TO(autoReplyFirstMessage)
+	NLOHMANN_JSON_TO(autoReplyRules)
 	NLOHMANN_JSON_TO(showGhostToggleInTray)
 	NLOHMANN_JSON_TO(showStreamerToggleInTray)
 	NLOHMANN_JSON_TO(monoFont)
@@ -361,6 +411,9 @@ inline void from_json(const nlohmann::json &nlohmann_json_j, AyuGramSettings &nl
 	NLOHMANN_JSON_FROM_WITH_DEFAULT(disableAds)
 	NLOHMANN_JSON_FROM_WITH_DEFAULT(disableStories)
 	NLOHMANN_JSON_FROM_WITH_DEFAULT(disableCustomBackgrounds)
+	NLOHMANN_JSON_FROM_WITH_DEFAULT(blurImages)
+	NLOHMANN_JSON_FROM_WITH_DEFAULT(blurStrength)
+	NLOHMANN_JSON_FROM_WITH_DEFAULT(hideTextContent)
 	NLOHMANN_JSON_FROM_WITH_DEFAULT(showOnlyAddedEmojisAndStickers)
 	NLOHMANN_JSON_FROM_WITH_DEFAULT(collapseSimilarChannels)
 	NLOHMANN_JSON_FROM_WITH_DEFAULT(hideSimilarChannels)
@@ -403,8 +456,20 @@ inline void from_json(const nlohmann::json &nlohmann_json_j, AyuGramSettings &nl
 	NLOHMANN_JSON_FROM_WITH_DEFAULT(showLReadToggleInDrawer)
 	NLOHMANN_JSON_FROM_WITH_DEFAULT(showSReadToggleInDrawer)
 	NLOHMANN_JSON_FROM_WITH_DEFAULT(showNightModeToggleInDrawer)
+	NLOHMANN_JSON_FROM_WITH_DEFAULT(showAutoReplyToggleInDrawer)
 	NLOHMANN_JSON_FROM_WITH_DEFAULT(showGhostToggleInDrawer)
 	NLOHMANN_JSON_FROM_WITH_DEFAULT(showStreamerToggleInDrawer)
+	NLOHMANN_JSON_FROM_WITH_DEFAULT(autoReplyEnabled)
+	NLOHMANN_JSON_FROM_WITH_DEFAULT(autoReplyMessage)
+	NLOHMANN_JSON_FROM_WITH_DEFAULT(autoReplySimulateTyping)
+	NLOHMANN_JSON_FROM_WITH_DEFAULT(autoReplyTypingDelayMs)
+	NLOHMANN_JSON_FROM_WITH_DEFAULT(autoReplySendingDelayMs)
+	NLOHMANN_JSON_FROM_WITH_DEFAULT(autoReplyTriggerWordsOnly)
+	NLOHMANN_JSON_FROM_WITH_DEFAULT(autoReplyTriggerWords)
+	NLOHMANN_JSON_FROM_WITH_DEFAULT(autoReplyMessages)
+	NLOHMANN_JSON_FROM_WITH_DEFAULT(autoReplyFirstMessageEnabled)
+	NLOHMANN_JSON_FROM_WITH_DEFAULT(autoReplyFirstMessage)
+	NLOHMANN_JSON_FROM_WITH_DEFAULT(autoReplyRules)
 	NLOHMANN_JSON_FROM_WITH_DEFAULT(showGhostToggleInTray)
 	NLOHMANN_JSON_FROM_WITH_DEFAULT(showStreamerToggleInTray)
 	NLOHMANN_JSON_FROM_WITH_DEFAULT(monoFont)
@@ -441,8 +506,10 @@ rpl::producer<QString> get_translationProviderReactive();
 
 bool isGhostModeActive();
 bool isUseScheduledMessages();
+bool isAutoReplyActive();
 
 rpl::producer<bool> get_ghostModeEnabledReactive();
+rpl::producer<bool> get_autoReplyEnabledReactive();
 
 void fire_filtersUpdate();
 rpl::producer<> get_filtersUpdate();
