@@ -78,15 +78,6 @@ void AboutBox(not_null<Ui::GenericBox*> box, Window::SessionController* controll
 	addText(Text());
 
 	box->addButton(tr::lng_close(), [=] { box->closeBox(); });
-	box->addLeftButton(
-		rpl::single(QString("@Stranger_Sparky")),
-		[box, controller]
-		{
-			box->closeBox();
-			controller->showPeerByLink(Window::PeerByLinkInfo{
-				.usernameOrId = QString("stranger_sparky"),
-			});
-		});
 
 	box->setWidth(st::aboutWidth);
 }

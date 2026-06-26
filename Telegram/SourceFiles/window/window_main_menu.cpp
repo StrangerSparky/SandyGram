@@ -387,21 +387,17 @@ MainMenu::MainMenu(
 		u"SandyGram Desktop"_q));
 	_telegram->setLinksTrusted();
 	_version->setMarkedText(
-		tr::link(
+		Ui::Text::WithEntities(
 			tr::lng_settings_current_version(
 				tr::now,
 				lt_version,
-				currentVersionText()),
-			1) // Link 1.
+				currentVersionText()))
 		.append(QChar(' '))
 		.append(QChar(8211))
 		.append(QChar(' '))
-		.append(tr::link(tr::lng_menu_about(tr::now), 2))); // Link 2.
+		.append(tr::link(tr::lng_menu_about(tr::now), 1))); // Link 1.
 	_version->setLink(
 		1,
-		std::make_shared<UrlClickHandler>(Core::App().changelogLink()));
-	_version->setLink(
-		2,
 		std::make_shared<LambdaClickHandler>([=] {
 			controller->show(Box(AboutBox, controller));
 		}));

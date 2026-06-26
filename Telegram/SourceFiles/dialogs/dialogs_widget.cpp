@@ -577,9 +577,7 @@ Widget::Widget(
 			checkUpdateStatus();
 		}, lifetime());
 
-		AyuUpdate::startSandyGramUpdateCheck([=] {
-			checkUpdateStatus();
-		});
+		checkUpdateStatus();
 	}
 
 	_cancelSearch->setClickedCallback([=] {
@@ -2167,27 +2165,21 @@ void Widget::checkUpdateStatus() {
 		_updateTelegram.destroy();
 	}
 
-	// SandyGram custom update check
-	if (AyuUpdate::isSandyGramUpdateAvailable()) {
-		if (!_updateSandyGram) {
-			_updateSandyGram.create(
-				this,
-				QString("SandyGram v%1 Available!").arg(AyuUpdate::latestSandyGramVersion()),
-				st::dialogsUpdateButton,
-				st::dialogsInstallUpdate,
-				st::dialogsInstallUpdateOver,
-				true);
-			_updateSandyGram->show();
-			_updateSandyGram->setClickedCallback([] {
-				QDesktopServices::openUrl(QUrl(AyuUpdate::sandygramReleasesUrl()));
-			});
-			if (_connecting) {
-				_connecting->raise();
-			}
-		}
-	} else {
-		if (_updateSandyGram) {
-			_updateSandyGram.destroy();
+	// SandyGram update – always shows link to releases page
+	if (!_updateSandyGram) {
+		_updateSandyGram.create(
+			this,
+			AyuUpdate::currentSandyGramVersionText(),
+			st::dialogsUpdateButton,
+			st::dialogsInstallUpdate,
+			st::dialogsInstallUpdateOver,
+			true);
+		_updateSandyGram->show();
+		_updateSandyGram->setClickedCallback([] {
+			QDesktopServices::openUrl(QUrl(AyuUpdate::sandygramReleasesUrl()));
+		});
+		if (_connecting) {
+			_connecting->raise();
 		}
 	}
 
