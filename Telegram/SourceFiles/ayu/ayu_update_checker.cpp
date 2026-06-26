@@ -11,7 +11,7 @@ namespace {
 
 constexpr auto kRepoOwner   = "StrangerSparky";
 constexpr auto kRepoName    = "SandyGram";
-constexpr auto kVersionFileBranch = "main";
+constexpr auto kVersionFileBranch = "dev";
 
 int g_latestVersion = 0;
 bool g_updateAvailable = false;
