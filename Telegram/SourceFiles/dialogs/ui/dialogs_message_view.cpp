@@ -536,8 +536,8 @@ void MessageView::paint(
 			}
 			const auto pixelSize = textImage.size();
 			const auto smallSize = std::min(
-				40,
-				std::max(10, textSize.width() / 4));
+				80,
+				std::max(30, textSize.width() / 4));
 			auto small = textImage.scaled(
 				smallSize,
 				smallSize,
@@ -546,11 +546,11 @@ void MessageView::paint(
 			small.setDevicePixelRatio(ratio);
 			auto blurred = Images::BlurLargeImage(
 				std::move(small),
-				AyuSettings::getInstance().blurStrength * 2);
+				AyuSettings::getInstance().blurStrength * 6);
 			textImage = blurred.scaled(
 				pixelSize,
 				Qt::IgnoreAspectRatio,
-				Qt::FastTransformation);
+				Qt::SmoothTransformation);
 			textImage.setDevicePixelRatio(ratio);
 			{
 				QPainter p2(&textImage);

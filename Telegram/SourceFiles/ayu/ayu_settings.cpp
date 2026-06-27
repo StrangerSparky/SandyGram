@@ -242,7 +242,7 @@ AyuGramSettings::AyuGramSettings() {
 	disableStories = false;
 	disableCustomBackgrounds = true;
 	blurImages = false;
-	blurStrength = 3;
+	blurStrength = 10;
 	hideTextContent = false;
 	showOnlyAddedEmojisAndStickers = false;
 	collapseSimilarChannels = true;
@@ -318,6 +318,7 @@ AyuGramSettings::AyuGramSettings() {
 	autoReplyFirstMessageEnabled = false;
 	autoReplyFirstMessage = "";
 	autoReplyRules = "";
+	autoReplyEnabledAccounts = "";
 
 	showGhostToggleInTray = true;
 	showStreamerToggleInTray = false;
@@ -699,6 +700,47 @@ void set_autoReplyFirstMessage(const QString &val) {
 
 void set_autoReplyRules(const QString &val) {
 	settings->autoReplyRules = val;
+}
+
+bool isAutoReplyActiveForSession(std::uint64_t sessionId) {
+	if (!settings->autoReplyEnabled) {
+		return false;
+	}
+	if (settings->autoReplyEnabledAccounts.isEmpty()) {
+		return true;
+	}
+	// Parse the JSON map: {"sessionId1":true, "sessionId2":false}
+	// Accounts not listed fall back to the global autoReplyEnabled toggle.
+	try {
+		const auto json = nlohmann::json::parse(
+			settings->autoReplyEnabledAccounts.toStdString());
+		const auto key = std::to_string(sessionId);
+		if (json.contains(key) && json[key].is_boolean()) {
+			return json[key].get<bool>();
+		}
+		return settings->autoReplyEnabled;
+	} catch (...) {
+		return settings->autoReplyEnabled;
+	}
+}
+
+void setAutoReplyEnabledForSession(std::uint64_t sessionId, bool enabled) {
+	if (!settings) {
+		return;
+	}
+	nlohmann::json json;
+	try {
+		if (!settings->autoReplyEnabledAccounts.isEmpty()) {
+			json = nlohmann::json::parse(
+				settings->autoReplyEnabledAccounts.toStdString());
+		}
+	} catch (...) {
+		json = nlohmann::json::object();
+	}
+	const auto key = std::to_string(sessionId);
+	json[key] = enabled;
+	settings->autoReplyEnabledAccounts = QString::fromStdString(json.dump());
+	autoReplyEnabledReactive = enabled;
 }
 
 void set_showGhostToggleInTray(bool val) {

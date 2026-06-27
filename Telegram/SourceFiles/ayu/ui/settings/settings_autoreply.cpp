@@ -15,6 +15,7 @@
 #include "ui/vertical_list.h"
 #include "ui/widgets/buttons.h"
 #include "ui/wrap/vertical_layout.h"
+#include "main/main_session.h"
 #include "window/window_session_controller.h"
 
 namespace Settings {
@@ -133,16 +134,18 @@ void AyuAutoReply::setupContent(not_null<Window::SessionController*> controller)
 	AddSkip(content);
 	AddSubsectionTitle(content, tr::ayu_AutoReplyTitle());
 
+	const auto currentSessionId = controller->session().uniqueId();
+
 	AddButtonWithIcon(
 		content,
 		tr::ayu_AutoReplyToggle(),
 		st::settingsButtonNoIcon
 	)->toggleOn(
-		AyuSettings::get_autoReplyEnabledReactive()
+		rpl::single(AyuSettings::isAutoReplyActiveForSession(currentSessionId))
 	)->toggledValue(
 	) | rpl::on_next(
 		[=](bool enabled) {
-			AyuSettings::set_autoReplyEnabled(enabled);
+			AyuSettings::setAutoReplyEnabledForSession(currentSessionId, enabled);
 			AyuSettings::save();
 		},
 		content->lifetime());

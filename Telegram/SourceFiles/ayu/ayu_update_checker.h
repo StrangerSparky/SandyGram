@@ -6,7 +6,7 @@
 namespace AyuUpdate {
 
 // Increment when you release a new build.
-inline constexpr int kSandyGramVersion = 1;
+inline constexpr int kSandyGramVersion = 2;
 
 // Starts an async check against version.txt on GitHub.
 void startSandyGramUpdateCheck(std::function<void()> onDone = nullptr);

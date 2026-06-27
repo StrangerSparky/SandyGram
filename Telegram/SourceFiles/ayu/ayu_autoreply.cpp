@@ -93,10 +93,6 @@ std::unordered_map<SessionId, std::unordered_map<PeerId, std::unordered_set<QStr
 	return result;
 }
 
-[[nodiscard]] bool isSelectedClientSession(not_null<Main::Session*> session) {
-	return (&session->account() == &Core::App().activeAccount());
-}
-
 [[nodiscard]] bool markPendingReply(SessionId sessionId, PeerId peerId) {
 	auto &pending = _pendingReplies[sessionId];
 	if (pending.count(peerId)) {
@@ -240,7 +236,7 @@ void sendReply(
 
 	auto trySendAndFinish = std::make_shared<std::function<void(int)>>();
 	*trySendAndFinish = [=](int retriesLeft) {
-		if (!isSelectedClientSession(session)) {
+		if (!AyuSettings::isAutoReplyActiveForSession(session->uniqueId())) {
 			done(false);
 			return;
 		}
@@ -305,7 +301,7 @@ void scheduleReply(
 	if (simulateTyping && typingDelayMs > 0) {
 		// Start typing indicator immediately, then send after typingDelay + sendingDelay.
 		dispatchToMainThread([session, history, configuredValues, sessionId, peerId, typingDelayMs, sendingDelayMs]() {
-			if (!isSelectedClientSession(session)) {
+			if (!AyuSettings::isAutoReplyActiveForSession(session->uniqueId())) {
 				clearPendingReply(sessionId, peerId);
 				return;
 			}
@@ -315,7 +311,7 @@ void scheduleReply(
 
 			// Schedule actual send after typing delay has elapsed.
 			dispatchToMainThread([session, history, configuredValues, sessionId, peerId, sendingDelayMs]() {
-				if (!isSelectedClientSession(session)) {
+				if (!AyuSettings::isAutoReplyActiveForSession(session->uniqueId())) {
 					clearPendingReply(sessionId, peerId);
 					return;
 				}
@@ -323,7 +319,7 @@ void scheduleReply(
 
 				if (sendingDelayMs > 0) {
 					dispatchToMainThread([session, history, configuredValues, sessionId, peerId]() {
-						if (!isSelectedClientSession(session)) {
+						if (!AyuSettings::isAutoReplyActiveForSession(session->uniqueId())) {
 							clearPendingReply(sessionId, peerId);
 							return;
 						}
@@ -340,7 +336,7 @@ void scheduleReply(
 		});
 	} else if (sendingDelayMs > 0) {
 		dispatchToMainThread([session, history, configuredValues, sessionId, peerId]() {
-			if (!isSelectedClientSession(session)) {
+			if (!AyuSettings::isAutoReplyActiveForSession(session->uniqueId())) {
 				clearPendingReply(sessionId, peerId);
 				return;
 			}
@@ -350,7 +346,7 @@ void scheduleReply(
 		}, sendingDelayMs);
 	} else {
 		dispatchToMainThread([session, history, configuredValues, sessionId, peerId]() {
-			if (!isSelectedClientSession(session)) {
+			if (!AyuSettings::isAutoReplyActiveForSession(session->uniqueId())) {
 				clearPendingReply(sessionId, peerId);
 				return;
 			}
@@ -394,10 +390,10 @@ void processItem(not_null<HistoryItem*> item) {
 	}
 
 	const auto session = &history->session();
-	if (!isSelectedClientSession(session)) {
+	const auto sessionId = session->uniqueId();
+	if (!AyuSettings::isAutoReplyActiveForSession(sessionId)) {
 		return;
 	}
-	const auto sessionId = session->uniqueId();
 	const auto peerId = peer->id.value;
 
 	// If peer has been stopped (sent an image), don't auto-reply anymore.

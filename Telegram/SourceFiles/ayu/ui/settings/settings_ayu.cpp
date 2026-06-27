@@ -18,6 +18,7 @@
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/wrap/vertical_layout.h"
+#include "main/main_session.h"
 #include "window/window_session_controller.h"
 
 namespace Settings {
@@ -80,17 +81,19 @@ void SetupGhostModeToggle(
 
 	AddCollapsibleToggle(container, tr::ayu_GhostModeToggle(), checkboxes, true);
 
+	const auto currentSessionId = controller->session().uniqueId();
+
 	AddButtonWithIcon(
 		container,
 		tr::ayu_AutoReplyToggle(),
 		st::settingsButtonNoIcon
 	)->toggleOn(
-		AyuSettings::get_autoReplyEnabledReactive()
+		rpl::single(AyuSettings::isAutoReplyActiveForSession(currentSessionId))
 	)->toggledValue(
 	) | rpl::on_next(
 		[=](bool enabled)
 		{
-			AyuSettings::set_autoReplyEnabled(enabled);
+			AyuSettings::setAutoReplyEnabledForSession(currentSessionId, enabled);
 			AyuSettings::save();
 			if (enabled) {
 				controller->showSettings(AyuAutoReply::Id());

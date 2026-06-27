@@ -6,6 +6,7 @@
 // Copyright @Radolyn, 2025
 #pragma once
 
+#include <cstdint>
 #include <unordered_set>
 #include "ayu/libs/json.hpp"
 #include "ayu/libs/json_ext.hpp"
@@ -142,6 +143,10 @@ public:
 	// When non-empty, the engine matches each rule against the incoming message
 	// and uses the linked shortcut instead of the global shortcut pool.
 	QString autoReplyRules;
+	// Per-account auto-reply: JSON object mapping session uniqueId → true/false.
+	// When non-empty, only listed accounts with true get auto-reply.
+	// When empty, global autoReplyEnabled applies to all accounts (backward compat).
+	QString autoReplyEnabledAccounts;
 
 	bool showGhostToggleInTray;
 	bool showStreamerToggleInTray;
@@ -266,6 +271,11 @@ void set_autoReplyFirstMessageEnabled(bool val);
 void set_autoReplyFirstMessage(const QString &val);
 void set_autoReplyRules(const QString &val);
 
+// Per-account auto-reply: query and toggle for a specific session.
+// When per-account map is empty, falls back to global autoReplyEnabled.
+[[nodiscard]] bool isAutoReplyActiveForSession(std::uint64_t sessionId);
+void setAutoReplyEnabledForSession(std::uint64_t sessionId, bool enabled);
+
 void set_showGhostToggleInTray(bool val);
 void set_showStreamerToggleInTray(bool val);
 
@@ -370,6 +380,7 @@ inline void to_json(nlohmann::json &nlohmann_json_j, const AyuGramSettings &nloh
 	NLOHMANN_JSON_TO(autoReplyFirstMessageEnabled)
 	NLOHMANN_JSON_TO(autoReplyFirstMessage)
 	NLOHMANN_JSON_TO(autoReplyRules)
+	NLOHMANN_JSON_TO(autoReplyEnabledAccounts)
 	NLOHMANN_JSON_TO(showGhostToggleInTray)
 	NLOHMANN_JSON_TO(showStreamerToggleInTray)
 	NLOHMANN_JSON_TO(monoFont)
@@ -470,6 +481,7 @@ inline void from_json(const nlohmann::json &nlohmann_json_j, AyuGramSettings &nl
 	NLOHMANN_JSON_FROM_WITH_DEFAULT(autoReplyFirstMessageEnabled)
 	NLOHMANN_JSON_FROM_WITH_DEFAULT(autoReplyFirstMessage)
 	NLOHMANN_JSON_FROM_WITH_DEFAULT(autoReplyRules)
+	NLOHMANN_JSON_FROM_WITH_DEFAULT(autoReplyEnabledAccounts)
 	NLOHMANN_JSON_FROM_WITH_DEFAULT(showGhostToggleInTray)
 	NLOHMANN_JSON_FROM_WITH_DEFAULT(showStreamerToggleInTray)
 	NLOHMANN_JSON_FROM_WITH_DEFAULT(monoFont)

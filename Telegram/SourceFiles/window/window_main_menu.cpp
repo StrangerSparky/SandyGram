@@ -864,10 +864,12 @@ void MainMenu::setupMenu() {
 	}
 
 	if (settings.showAutoReplyToggleInDrawer) {
+		const auto currentSessionId = controller->session().uniqueId();
 		const auto autoReplyToggle = addAction(
 			tr::ayu_AutoReplyToggle(),
 			{ &st::menuIconReply }
-		)->toggleOn(AyuSettings::get_autoReplyEnabledReactive());
+		)->toggleOn(rpl::single(
+			AyuSettings::isAutoReplyActiveForSession(currentSessionId)));
 
 		base::install_event_filter(autoReplyToggle, [=](not_null<QEvent*> e) {
 			if (e->type() == QEvent::MouseButtonPress) {
@@ -891,7 +893,8 @@ void MainMenu::setupMenu() {
 		) | rpl::on_next(
 			[=](bool enabled)
 			{
-				AyuSettings::set_autoReplyEnabled(enabled);
+				AyuSettings::setAutoReplyEnabledForSession(
+					currentSessionId, enabled);
 				AyuSettings::save();
 			},
 			autoReplyToggle->lifetime());

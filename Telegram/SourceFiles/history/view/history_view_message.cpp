@@ -1169,18 +1169,22 @@ void Message::draw(Painter &p, const PaintContext &context) const {
 					trect = textTrect;
 				}
 				const auto pixelSize = textImage.size();
+				const auto smallSize = std::min(
+					80,
+					std::max(30, trect.width() / 4));
 				auto small = textImage.scaled(
-					40, 40,
+					smallSize,
+					smallSize,
 					Qt::KeepAspectRatio,
 					Qt::SmoothTransformation);
 				small.setDevicePixelRatio(ratio);
 				auto blurred = Images::BlurLargeImage(
 					std::move(small),
-					AyuSettings::getInstance().blurStrength);
+					AyuSettings::getInstance().blurStrength * 6);
 				textImage = blurred.scaled(
 					pixelSize,
 					Qt::IgnoreAspectRatio,
-					Qt::FastTransformation);
+					Qt::SmoothTransformation);
 				textImage.setDevicePixelRatio(ratio);
 				{
 					Painter p2(&textImage);
