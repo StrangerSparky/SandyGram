@@ -2539,9 +2539,9 @@ TextState Message::textState(
 					result.symbol += visibleMediaTextLen;
 				}
 				result.overMessageText = true;
-				if (AyuSettings::getInstance().hideTextContent
-					&& hasVisibleText()
-					&& (!_textRevealed || !result.link)) {
+			if (AyuSettings::getInstance().hideTextContent
+				&& hasVisibleText()
+				&& !_textRevealed && !result.link) {
 					if (!_textRevealHandler) {
 						const auto raw = const_cast<Message*>(this);
 						_textRevealHandler
@@ -2562,12 +2562,13 @@ TextState Message::textState(
 		if (!result.link
 			&& AyuSettings::getInstance().hideTextContent
 			&& hasVisibleText()
+			&& _textRevealed
 			&& trect.contains(point)) {
 			if (!_textRevealHandler) {
 				const auto raw = const_cast<Message*>(this);
 				_textRevealHandler = std::make_shared<LambdaClickHandler>(
 					crl::guard(raw, [raw] {
-						raw->_textRevealed = !raw->_textRevealed;
+						raw->_textRevealed = false;
 						raw->customEmojiRepaint();
 					}));
 			}

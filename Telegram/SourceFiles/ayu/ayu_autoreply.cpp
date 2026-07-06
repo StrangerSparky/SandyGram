@@ -25,6 +25,10 @@
 
 #include <QStringList>
 #include <QRegularExpression>
+#include <QFile>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QJsonArray>
 #include <unordered_map>
 #include <unordered_set>
 #include <random>
@@ -50,6 +54,10 @@ std::unordered_map<SessionId, std::unordered_set<PeerId>> _stoppedPeers;
 // Trigger words already used per peer — each word fires at most once per peer per session.
 std::unordered_map<SessionId, std::unordered_map<PeerId, std::unordered_set<QString>>> _usedTriggers;
 
+// Forward declarations for persistence functions defined at end of namespace.
+void saveState();
+void resetPeerTracking(SessionId sessionId, PeerId peerId);
+
 [[nodiscard]] bool markUsedTrigger(SessionId sessionId, PeerId peerId, const QString &triggerWord) {
 	auto &perPeer = _usedTriggers[sessionId];
 	auto &used = perPeer[peerId];
@@ -57,6 +65,7 @@ std::unordered_map<SessionId, std::unordered_map<PeerId, std::unordered_set<QStr
 		return false;
 	}
 	used.insert(triggerWord);
+	saveState();
 	return true;
 }
 
@@ -108,6 +117,7 @@ std::unordered_map<SessionId, std::unordered_map<PeerId, std::unordered_set<QStr
 		return false;
 	}
 	stopped.insert(peerId);
+	saveState();
 	return true;
 }
 
@@ -464,6 +474,7 @@ void processItem(not_null<HistoryItem*> item) {
 
 			if (!shortcutToSend.isEmpty() && markPendingReply(sessionId, peerId)) {
 				firstSent.insert(peerId);
+				saveState();
 				const auto simulateTyping = settings.autoReplySimulateTyping;
 				const auto typingDelayMs = simulateTyping ? settings.autoReplyTypingDelayMs : 0;
 				const auto sendingDelayMs = settings.autoReplySendingDelayMs;
@@ -546,17 +557,175 @@ void processItem(not_null<HistoryItem*> item) {
 		sendingDelayMs);
 }
 
+// ── Persistence ────────────────────────────────────────────────────────────
+
+[[nodiscard]] QString getTrackingDataPath() {
+	return cWorkingDir() + u"tdata/ayu_autoreply_tracking.json"_q;
+}
+
+void saveState() {
+	QJsonObject root;
+
+	QJsonObject firstObj;
+	for (const auto &[sessionId, peers] : _firstMessageSent) {
+		QJsonArray arr;
+		for (const auto &peerId : peers) {
+			arr.append(QString::number(peerId));
+		}
+		firstObj[QString::number(sessionId)] = arr;
+	}
+	root[u"firstMessageSent"_q] = firstObj;
+
+	QJsonObject stoppedObj;
+	for (const auto &[sessionId, peers] : _stoppedPeers) {
+		QJsonArray arr;
+		for (const auto &peerId : peers) {
+			arr.append(QString::number(peerId));
+		}
+		stoppedObj[QString::number(sessionId)] = arr;
+	}
+	root[u"stoppedPeers"_q] = stoppedObj;
+
+	QJsonObject triggersObj;
+	for (const auto &[sessionId, perPeer] : _usedTriggers) {
+		QJsonObject peerObj;
+		for (const auto &[peerId, triggers] : perPeer) {
+			QJsonArray arr;
+			for (const auto &trigger : triggers) {
+				arr.append(trigger);
+			}
+			peerObj[QString::number(peerId)] = arr;
+		}
+		triggersObj[QString::number(sessionId)] = peerObj;
+	}
+	root[u"usedTriggers"_q] = triggersObj;
+
+	QFile file(getTrackingDataPath());
+	if (file.open(QIODevice::WriteOnly)) {
+		file.write(QJsonDocument(root).toJson(QJsonDocument::Indented));
+	}
+}
+
+void loadState() {
+	QFile file(getTrackingDataPath());
+	if (!file.open(QIODevice::ReadOnly)) {
+		return;
+	}
+
+	const auto doc = QJsonDocument::fromJson(file.readAll());
+	if (doc.isNull() || !doc.isObject()) {
+		return;
+	}
+
+	const auto root = doc.object();
+
+	_firstMessageSent.clear();
+	_stoppedPeers.clear();
+	_usedTriggers.clear();
+
+	if (root.contains(u"firstMessageSent"_q)) {
+		const auto obj = root[u"firstMessageSent"_q].toObject();
+		for (auto it = obj.begin(); it != obj.end(); ++it) {
+			const auto sessionId = it.key().toULongLong();
+			const auto arr = it.value().toArray();
+			std::unordered_set<PeerId> peers;
+			for (const auto &val : arr) {
+				peers.insert(val.toString().toULongLong());
+			}
+			_firstMessageSent[sessionId] = std::move(peers);
+		}
+	}
+
+	if (root.contains(u"stoppedPeers"_q)) {
+		const auto obj = root[u"stoppedPeers"_q].toObject();
+		for (auto it = obj.begin(); it != obj.end(); ++it) {
+			const auto sessionId = it.key().toULongLong();
+			const auto arr = it.value().toArray();
+			std::unordered_set<PeerId> peers;
+			for (const auto &val : arr) {
+				peers.insert(val.toString().toULongLong());
+			}
+			_stoppedPeers[sessionId] = std::move(peers);
+		}
+	}
+
+	if (root.contains(u"usedTriggers"_q)) {
+		const auto triggersObj = root[u"usedTriggers"_q].toObject();
+		for (auto it = triggersObj.begin(); it != triggersObj.end(); ++it) {
+			const auto sessionId = it.key().toULongLong();
+			const auto peerObj = it.value().toObject();
+			std::unordered_map<PeerId, std::unordered_set<QString>> perPeer;
+			for (auto pit = peerObj.begin(); pit != peerObj.end(); ++pit) {
+				const auto peerId = pit.key().toULongLong();
+				const auto arr = pit.value().toArray();
+				std::unordered_set<QString> triggers;
+				for (const auto &val : arr) {
+					triggers.insert(val.toString());
+				}
+				perPeer[peerId] = std::move(triggers);
+			}
+			_usedTriggers[sessionId] = std::move(perPeer);
+		}
+	}
+}
+
+void resetPeerTracking(SessionId sessionId, PeerId peerId) {
+	auto changed = false;
+
+	auto it = _firstMessageSent.find(sessionId);
+	if (it != end(_firstMessageSent)) {
+		changed |= (it->second.erase(peerId) > 0);
+		if (it->second.empty()) {
+			_firstMessageSent.erase(it);
+		}
+	}
+
+	auto sit = _stoppedPeers.find(sessionId);
+	if (sit != end(_stoppedPeers)) {
+		changed |= (sit->second.erase(peerId) > 0);
+		if (sit->second.empty()) {
+			_stoppedPeers.erase(sit);
+		}
+	}
+
+	auto tit = _usedTriggers.find(sessionId);
+	if (tit != end(_usedTriggers)) {
+		auto pit = tit->second.find(peerId);
+		if (pit != end(tit->second)) {
+			tit->second.erase(pit);
+			changed = true;
+			if (tit->second.empty()) {
+				_usedTriggers.erase(tit);
+			}
+		}
+	}
+
+	if (changed) {
+		saveState();
+	}
+}
+
 } // namespace
 
 void initForSession(not_null<Main::Session*> session) {
+	loadState();
+
 	// Ensure shortcut list starts loading for premium quick replies.
 	session->data().shortcutMessages().preloadShortcuts();
 
 	// Subscribe to every new item added to this session's data store.
-	// The subscription lives as long as the session does.
 	session->data().newItemAdded(
 	) | rpl::on_next([](not_null<HistoryItem*> item) {
 		processItem(item);
+	}, session->lifetime());
+
+	// When an item is removed (deleted), reset tracking for that peer
+	// so auto-reply can fire again.
+	session->data().itemRemoved(
+	) | rpl::on_next([](not_null<const HistoryItem*> item) {
+		resetPeerTracking(
+			item->history()->session().uniqueId(),
+			item->history()->peer->id.value);
 	}, session->lifetime());
 }
 

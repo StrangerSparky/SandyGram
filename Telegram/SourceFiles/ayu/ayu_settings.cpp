@@ -740,6 +740,9 @@ void setAutoReplyEnabledForSession(std::uint64_t sessionId, bool enabled) {
 	const auto key = std::to_string(sessionId);
 	json[key] = enabled;
 	settings->autoReplyEnabledAccounts = QString::fromStdString(json.dump());
+	if (enabled || json.empty()) {
+		settings->autoReplyEnabled = enabled;
+	}
 	autoReplyEnabledReactive = enabled;
 }
 
